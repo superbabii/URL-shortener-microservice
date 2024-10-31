@@ -31,37 +31,34 @@ app.get('/', (req, res) => {
 });
 
 // Endpoint to create a shortened URL
-app.post('/api/shorturl', (req, res) => {
+app.post('/api/shorturl', async (req, res) => {
   const inputUrl = req.body.url;
   
   // Validate the URL using DNS lookup
   const urlObj = url.parse(inputUrl);
-  dns.lookup(urlObj.hostname, (err, address) => {
+  dns.lookup(urlObj.hostname, async (err, address) => {
     if (err || !address) {
       return res.json({ error: 'invalid url' });
     } else {
-      // Check if the URL already exists in the database
-      Url.findOne({ original_url: inputUrl }, (err, foundUrl) => {
-        if (err) return res.json({ error: 'Database error' });
-
+      try {
+        // Check if the URL already exists in the database
+        const foundUrl = await Url.findOne({ original_url: inputUrl });
         if (foundUrl) {
-          res.json({ original_url: foundUrl.original_url, short_url: foundUrl.short_url });
+          return res.json({ original_url: foundUrl.original_url, short_url: foundUrl.short_url });
         } else {
           // Generate a new short URL
-          Url.countDocuments({}, (err, count) => {
-            if (err) return res.json({ error: 'Database error' });
-            
-            const newUrl = new Url({ original_url: inputUrl, short_url: count + 1 });
-            newUrl.save((err, savedUrl) => {
-              if (err) return res.json({ error: 'Database error' });
-              res.json({ original_url: savedUrl.original_url, short_url: savedUrl.short_url });
-            });
-          });
+          const count = await Url.countDocuments({});
+          const newUrl = new Url({ original_url: inputUrl, short_url: count + 1 });
+          const savedUrl = await newUrl.save();
+          res.json({ original_url: savedUrl.original_url, short_url: savedUrl.short_url });
         }
-      });
+      } catch (err) {
+        res.json({ error: 'Database error' });
+      }
     }
   });
 });
+
 
 // Endpoint to redirect to the original URL using the short URL
 app.get('/api/shorturl/:short', (req, res) => {
