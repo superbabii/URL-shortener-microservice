@@ -61,17 +61,24 @@ app.post('/api/shorturl', async (req, res) => {
 
 
 // Endpoint to redirect to the original URL using the short URL
-app.get('/api/shorturl/:short', (req, res) => {
-  const shortUrl = req.params.short;
-  
-  Url.findOne({ short_url: shortUrl }, (err, foundUrl) => {
-    if (err) return res.json({ error: 'Database error' });
-    if (!foundUrl) {
-      res.json({ error: 'No short URL found for the given input' });
-    } else {
+app.get('/api/shorturl/:short', async (req, res) => {
+  try {
+    // Parse the short URL from the request parameters
+    const shortUrl = parseInt(req.params.short);
+
+    // Find the corresponding URL document in the database
+    const foundUrl = await Url.findOne({ short_url: shortUrl });
+
+    // If found, redirect to the original URL
+    if (foundUrl) {
       res.redirect(foundUrl.original_url);
+    } else {
+      // If not found, return an error message
+      res.json({ error: 'No short URL found for the given input' });
     }
-  });
+  } catch (err) {
+    res.json({ error: 'Database error' });
+  }
 });
 
 // Start the server
